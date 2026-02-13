@@ -31,7 +31,7 @@ pub(crate) mod scap_screen_capture;
 
 use crate::{
     Action, AnyWindowHandle, App, AsyncWindowContext, BackgroundExecutor, Bounds,
-    DEFAULT_WINDOW_SIZE, DevicePixels, DispatchEventResult, Font, FontId, FontMetrics, FontRun,
+    DEFAULT_WINDOW_SIZE, DevicePixels, DispatchEventResult, ExternalPaths, Font, FontId, FontMetrics, FontRun,
     ForegroundExecutor, GlyphId, GpuSpecs, ImageSource, Keymap, LineLayout, Pixels, PlatformInput,
     Point, Priority, RenderGlyphParams, RenderImage, RenderImageParams, RenderSvgParams, Scene,
     ShapedGlyph, ShapedRun, SharedString, Size, SvgRenderer, SystemWindowTab, Task, TaskTiming,
@@ -1690,6 +1690,15 @@ impl ClipboardItem {
         }
     }
 
+    /// Create a new ClipboardItem with the given external paths
+    pub fn new_external_paths(paths: Vec<std::path::PathBuf>) -> Self {
+        Self {
+            entries: vec![ClipboardEntry::ExternalPaths(ExternalPaths(
+                smallvec::SmallVec::from_vec(paths),
+            ))],
+        }
+    }
+
     /// Concatenates together all the ClipboardString entries in the item.
     /// Returns None if there were no ClipboardString entries.
     pub fn text(&self) -> Option<String> {
@@ -1738,6 +1747,17 @@ impl ClipboardItem {
     /// Get owned versions of the item's entries
     pub fn into_entries(self) -> impl Iterator<Item = ClipboardEntry> {
         self.entries.into_iter()
+    }
+
+    /// If this item contains ExternalPaths, return them
+    pub fn external_paths(&self) -> Option<&ExternalPaths> {
+        self.entries().iter().find_map(|entry| {
+            if let ClipboardEntry::ExternalPaths(paths) = entry {
+                Some(paths)
+            } else {
+                None
+            }
+        })
     }
 }
 

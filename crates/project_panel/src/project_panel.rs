@@ -2931,7 +2931,26 @@ impl ProjectPanel {
     fn cut(&mut self, _: &Cut, _: &mut Window, cx: &mut Context<Self>) {
         let entries = self.disjoint_effective_entries(cx);
         if !entries.is_empty() {
-            self.clipboard = Some(ClipboardEntry::Cut(entries));
+            self.clipboard = Some(ClipboardEntry::Cut(entries.clone()));
+
+            // Write to system clipboard for cross-instance copy/paste
+            // Note: For cut, we still write as copy since cross-instance cut is not supported
+            let project = self.project.read(cx);
+            let mut paths: Vec<std::path::PathBuf> = Vec::new();
+            for entry in &entries {
+                if let Some(worktree) = project.worktree_for_id(entry.worktree_id, cx) {
+                    let worktree = worktree.read(cx);
+                    if let Some(project_entry) = worktree.entry_for_id(entry.entry_id) {
+                        let abs_path = worktree.absolutize(&project_entry.path);
+                        paths.push(abs_path);
+                    }
+                }
+            }
+
+            if !paths.is_empty() {
+                cx.write_to_clipboard(gpui::ClipboardItem::new_external_paths(paths));
+            }
+
             cx.notify();
         }
     }
@@ -2939,7 +2958,25 @@ impl ProjectPanel {
     fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
         let entries = self.disjoint_effective_entries(cx);
         if !entries.is_empty() {
-            self.clipboard = Some(ClipboardEntry::Copied(entries));
+            self.clipboard = Some(ClipboardEntry::Copied(entries.clone()));
+
+            // Write to system clipboard for cross-instance copy/paste
+            let project = self.project.read(cx);
+            let mut paths: Vec<std::path::PathBuf> = Vec::new();
+            for entry in &entries {
+                if let Some(worktree) = project.worktree_for_id(entry.worktree_id, cx) {
+                    let worktree = worktree.read(cx);
+                    if let Some(project_entry) = worktree.entry_for_id(entry.entry_id) {
+                        let abs_path = worktree.absolutize(&project_entry.path);
+                        paths.push(abs_path);
+                    }
+                }
+            }
+
+            if !paths.is_empty() {
+                cx.write_to_clipboard(gpui::ClipboardItem::new_external_paths(paths));
+            }
+
             cx.notify();
         }
     }
@@ -3004,10 +3041,65 @@ impl ProjectPanel {
             let (worktree, entry) = self.selected_entry_handle(cx)?;
             let entry = entry.clone();
             let worktree_id = worktree.read(cx).id();
-            let clipboard_entries = self
+
+            // Check if we have internal clipboard entries
+            let internal_clipboard_entries = self
                 .clipboard
                 .as_ref()
-                .filter(|clipboard| !clipboard.items().is_empty())?;
+                .filter(|clipboard| !clipboard.items().is_empty());
+
+            // If no internal clipboard, try to read from system clipboard
+            let clipboard_entries = if internal_clipboard_entries.is_none() {
+                // Try to read external paths from system clipboard
+                if let Some(clipboard_item) = cx.read_from_clipboard() {
+                    if let Some(external_paths) = clipboard_item.external_paths() {
+                        // Convert external paths to SelectedEntry format
+                        let project = self.project.read(cx);
+                        let mut entries = BTreeSet::new();
+                        for path in external_paths.paths() {
+                            // Find if this path is within any of our worktrees
+                            for worktree_entry in project.worktrees(cx) {
+                                let worktree_reader = worktree_entry.read(cx);
+                                let abs_path = worktree_reader.abs_path();
+                                let path_str = path.to_string_lossy().to_string();
+                                let abs_path_str = abs_path.to_string_lossy().to_string();
+
+                                // Check if the path is within this worktree
+                                if path_str.starts_with(&abs_path_str) {
+                                    // Convert to relative path
+                                    let rel_path_str = path_str.strip_prefix(&abs_path_str)
+                                        .map(|s| s.trim_start_matches('/'))
+                                        .unwrap_or("");
+                                    if !rel_path_str.is_empty() {
+                                        if let Ok(rel_path) = RelPath::unix(rel_path_str) {
+                                            if let Some(project_entry) = worktree_reader.entry_for_path(&rel_path) {
+                                                entries.insert(SelectedEntry {
+                                                    worktree_id: worktree_reader.id(),
+                                                    entry_id: project_entry.id,
+                                                });
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if !entries.is_empty() {
+                            // Store as a copy operation for pasting
+                            self.clipboard = Some(ClipboardEntry::Copied(entries));
+                            self.clipboard.as_ref()?
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        return None;
+                    }
+                } else {
+                    return None;
+                }
+            } else {
+                internal_clipboard_entries?
+            };
 
             enum PasteTask {
                 Rename(Task<Result<CreatedEntry>>),

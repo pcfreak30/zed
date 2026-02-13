@@ -9736,3 +9736,108 @@ impl Render for TestProjectItemView {
         Empty
     }
 }
+
+#[gpui::test]
+async fn test_copy_paste_between_different_instances(cx: &mut gpui::TestAppContext) {
+    init_test(cx);
+
+    let fs = FakeFs::new(cx.executor());
+    fs.insert_tree(
+        "/root",
+        json!({
+            "a": {
+                "one.txt": "content1",
+                "two.txt": "content2",
+            },
+            "b": {
+                "three.txt": "content3",
+            },
+        }),
+    )
+    .await;
+
+    // Create first instance and copy a file
+    let project1 = Project::test(fs.clone(), ["/root".as_ref()], cx).await;
+    let window1 = cx.add_window(|window, cx| MultiWorkspace::test_new(project1.clone(), window, cx));
+    let workspace1 = window1
+        .read_with(cx, |mw, _| mw.workspace().clone())
+        .unwrap();
+    let cx1 = &mut VisualTestContext::from_window(window1.into(), cx);
+    let panel1 = workspace1.update_in(cx1, ProjectPanel::new);
+    cx1.run_until_parked();
+
+    select_path(&panel1, "root/a/one.txt", cx1);
+    panel1.update_in(cx1, |panel, window, cx| {
+        panel.copy(&Default::default(), window, cx);
+    });
+
+    // Verify clipboard was written to system clipboard
+    let clipboard_item = cx1.read_from_clipboard();
+    assert!(clipboard_item.is_some(), "Clipboard should contain copied files");
+    let item = clipboard_item.unwrap();
+    let external_paths = item.external_paths();
+    assert!(external_paths.is_some(), "Clipboard should contain external paths");
+    assert_eq!(external_paths.unwrap().paths().len(), 1, "Should have 1 path");
+
+    // Create second instance and paste from system clipboard
+    let window2 = cx.add_window(|window, cx| MultiWorkspace::test_new(project1.clone(), window, cx));
+    let workspace2 = window2
+        .read_with(cx, |mw, _| mw.workspace().clone())
+        .unwrap();
+    let cx2 = &mut VisualTestContext::from_window(window2.into(), cx);
+    let panel2 = workspace2.update_in(cx2, ProjectPanel::new);
+    cx2.run_until_parked();
+
+    select_path(&panel2, "root/b", cx2);
+    panel2.update_in(cx2, |panel, window, cx| {
+        panel.paste(&Default::default(), window, cx);
+    });
+    cx2.executor().run_until_parked();
+
+    // Verify the file was pasted
+    assert_eq!(
+        visible_entries_as_strings(&panel2, 0..50, cx2),
+        &[
+            "v root",
+            "    > a",
+            "    v b",
+            "        one.txt  <== selected",
+            "        three.txt",
+        ],
+        "File should be pasted from system clipboard"
+    );
+
+    // Test copying multiple files
+    select_path(&panel2, "root/a/one.txt", cx2);
+    panel2.update_in(cx2, |panel, window, cx| {
+        panel.select_next(&Default::default(), window, cx);
+        panel.copy(&Default::default(), window, cx);
+    });
+
+    let clipboard_item = cx2.read_from_clipboard();
+    assert!(clipboard_item.is_some());
+    let item = clipboard_item.unwrap();
+    let external_paths = item.external_paths();
+    assert!(external_paths.is_some());
+    assert_eq!(external_paths.unwrap().paths().len(), 2, "Should have 2 paths");
+
+    // Paste in another location
+    select_path(&panel2, "root/b", cx2);
+    panel2.update_in(cx2, |panel, window, cx| {
+        panel.paste(&Default::default(), window, cx);
+    });
+    cx2.executor().run_until_parked();
+
+    assert_eq!(
+        visible_entries_as_strings(&panel2, 0..50, cx2),
+        &[
+            "v root",
+            "    > a",
+            "    v b",
+            "        one.txt",
+            "        three.txt",
+            "        two.txt  <== selected",
+        ],
+        "Multiple files should be pasted from system clipboard"
+    );
+}
