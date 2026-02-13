@@ -94,10 +94,6 @@ impl Watcher for FsWatcher {
             }
         }
 
-        #[cfg(any(target_os = "windows", target_os = "macos"))]
-        let mode = notify::RecursiveMode::Recursive;
-        #[cfg(target_os = "linux")]
-        let mode = notify::RecursiveMode::NonRecursive;
         #[cfg(target_os = "linux")]
         let removed_paths = self.removed_paths.clone();
 
