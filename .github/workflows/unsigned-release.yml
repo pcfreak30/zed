@@ -16,6 +16,14 @@ jobs:
       uses: actions/checkout@v4
       with:
         clean: false
+    - name: steps::setup_cargo_config
+      run: |
+        mkdir -p ./../.cargo
+        cp ./.cargo/ci-config.toml ./../.cargo/config.toml
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-targets: true
+        cache-bin: true
     - name: steps::setup_linux
       run: ./script/linux
     - name: steps::install_mold
