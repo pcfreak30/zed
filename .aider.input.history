@@ -1,0 +1,16 @@
+
+# 2026-02-13T00:05:51.571Z
++We want to fork the zed project and add in our own patches from various PRS.
++
++start by creating a new branch.
++
++then merge in the diffs of https://github.com/zed-industries/zed/issues/38109
+
+# 2026-02-13T00:07:09.446Z
++review the prs and decide what of them we sgould merge in.
+
+# 2026-02-13T00:08:15.480Z
++create a branch for us to manage our cusrtom zed in.
+
+# 2026-02-13T00:08:28.774Z
++now start.

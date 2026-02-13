@@ -435,7 +435,7 @@ pub enum DiskState {
     /// File created in Zed that has not been saved.
     New,
     /// File present on the filesystem.
-    Present { mtime: MTime },
+    Present { mtime: MTime, size: u64 },
     /// Deleted file that was previously present.
     Deleted,
     /// An old version of a file that was previously present
@@ -448,7 +448,7 @@ impl DiskState {
     pub fn mtime(self) -> Option<MTime> {
         match self {
             DiskState::New => None,
-            DiskState::Present { mtime } => Some(mtime),
+            DiskState::Present { mtime, .. } => Some(mtime),
             DiskState::Deleted => None,
             DiskState::Historic { .. } => None,
         }
@@ -2373,7 +2373,7 @@ impl Buffer {
         };
         match file.disk_state() {
             DiskState::New => false,
-            DiskState::Present { mtime } => match self.saved_mtime {
+            DiskState::Present { mtime, .. } => match self.saved_mtime {
                 Some(saved_mtime) => {
                     mtime.bad_is_greater_than(saved_mtime) && self.has_unsaved_edits()
                 }
@@ -2848,8 +2848,18 @@ impl Buffer {
 
         self.reparse(cx, true);
         cx.emit(BufferEvent::Edited);
-        if was_dirty != self.is_dirty() {
+        let is_dirty = self.is_dirty();
+        if was_dirty != is_dirty {
             cx.emit(BufferEvent::DirtyChanged);
+        }
+        if was_dirty && !is_dirty {
+            if let Some(file) = self.file.as_ref() {
+                if matches!(file.disk_state(), DiskState::Present { .. })
+                    && file.disk_state().mtime() != self.saved_mtime
+                {
+                    cx.emit(BufferEvent::ReloadNeeded);
+                }
+            }
         }
         cx.notify();
     }

@@ -1,0 +1,24 @@
+{
+  "id": "17e383d6-8097-4aec-a951-5c8d47da9cee",
+  "baseDir": "/root/projects/Software/zed",
+  "name": "Apply patches to Zed fork",
+  "archived": false,
+  "aiderTotalCost": 0,
+  "agentTotalCost": 0,
+  "mainModel": "openrouter/anthropic/claude-sonnet-4.5",
+  "currentMode": "agent",
+  "contextCompactingThreshold": 80,
+  "weakModelLocked": false,
+  "parentId": null,
+  "lastAgentProviderMetadata": {
+    "openai-compatible": {}
+  },
+  "autoApprove": true,
+  "workingMode": "local",
+  "state": "IN_PROGRESS",
+  "createdAt": "2026-02-13T00:05:51.572Z",
+  "updatedAt": "2026-02-13T00:11:35.077Z",
+  "startedAt": "2026-02-13T00:11:32.045Z",
+  "interruptedAt": "2026-02-13T00:09:37.975Z",
+  "completedAt": "2026-02-13T00:08:26.797Z"
+}
