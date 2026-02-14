@@ -639,6 +639,12 @@ rsa = "0.9.6"
 runtimelib = { version = "1.2.0", default-features = false, features = [
     "async-dispatcher-runtime", "aws-lc-rs"
 ] }
+
+[target.'cfg(target_env = "musl")'.dependencies]
+# Override to disable aws-lc-rs for musl targets (glibc-specific symbols)
+runtimelib = { version = "1.2.0", default-features = false, features = [
+    "async-dispatcher-runtime"
+] }
 rust-embed = { version = "8.4", features = ["include-exclude"] }
 rustc-hash = "2.1.0"
 rustls = { version = "0.23.26" }
