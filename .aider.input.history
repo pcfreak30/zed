@@ -14,3 +14,41 @@
 
 # 2026-02-13T00:08:28.774Z
 +now start.
+
+# 2026-02-13T23:51:51.743Z
++compare the primary build workflows to .github/workflows/unsigned-release.yml . we are still getting musl linking errors and I feel we must be missing a detail.
+
+# 2026-02-13T23:53:59.259Z
++fix that, and add in
++
++- uses: Swatinem/rust-cache@v2
++  with:
++    cache-targets: true
++    cache-bin: true
++    save-if: ${{ github.ref == 'refs/heads/master' }} https://raw.githubusercontent.com/Swatinem/rust-cache/refs/heads/master/README.md
+
+# 2026-02-13T23:54:33.905Z
++review https://raw.githubusercontent.com/Swatinem/rust-cache/refs/heads/master/README.md b/c the ref compare isnt the right branch and you should verify all options
+
+# 2026-02-13T23:54:59.388Z
++ Remove the save-if line entirely 
+
+# 2026-02-13T23:55:14.112Z
++commit this and push.
+
+# 2026-02-13T23:58:01.935Z
++should we make the cache keys based on hashes like its done with node?
++
++see https://github.com/Swatinem/rust-cache/raw/refs/heads/master/src/save.ts https://github.com/Swatinem/rust-cache/raw/refs/heads/master/src/restore.ts
+
+# 2026-02-14T01:12:24.681Z
++use api and fetch https://github.com/pcfreak30/zed/actions/runs/22006925079/job/63592611891 logs, tail at the end of it
+
+# 2026-02-14T01:12:46.756Z
++use gh api and tail.
+
+# 2026-02-14T02:18:04.461Z
++read https://github.com/pcfreak30/zed/actions/runs/22008361133/job/63597058746
+
+# 2026-02-14T02:24:30.250Z
++https://github.com/pcfreak30/zed/actions/runs/22009381750/job/63599987936
