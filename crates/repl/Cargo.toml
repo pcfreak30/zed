@@ -41,6 +41,7 @@ menu.workspace = true
 multi_buffer.workspace = true
 nbformat.workspace = true
 project.workspace = true
+[dependencies]
 runtimelib.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -56,6 +57,10 @@ uuid.workspace = true
 workspace.workspace = true
 picker.workspace = true
 zed_actions.workspace = true
+
+[target.'cfg(target_env = "musl")'.dependencies]
+# Override to disable aws-lc-rs for musl targets (glibc-specific symbols)
+runtimelib = { version = "1.2.0", default-features = false, features = ["async-dispatcher-runtime"] }
 
 [dev-dependencies]
 editor = { workspace = true, features = ["test-support"] }
